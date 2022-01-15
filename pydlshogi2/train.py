@@ -18,6 +18,7 @@ parser.add_argument('--checkpoint', default='checkpoints/checkpoint-{epoch:03}.p
 parser.add_argument('--resume', '-r', default='', help='Resume from snapshot')
 parser.add_argument('--eval_interval', type=int, default=100, help='evaluation interval')
 parser.add_argument('--log', default=None, help='log file path')
+parser.add_argument('--use_amp', action='store_true', help='Use automatic mixed precision')
 args = parser.parse_args()
 
 logging.basicConfig(format='%(asctime)s\t%(levelname)s\t%(message)s', datefmt='%Y/%m/%d %H:%M:%S', filename=args.log, level=logging.DEBUG)
@@ -40,6 +41,7 @@ optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=0.9, weight_decay
 # 損失関数
 cross_entropy_loss = torch.nn.CrossEntropyLoss()
 bce_with_logits_loss = torch.nn.BCEWithLogitsLoss()
+scaler = torch.cuda.amp.GradScaler(enabled=args.use_amp)
 
 # チェックポイント読み込み
 if args.resume:
@@ -51,6 +53,8 @@ if args.resume:
     optimizer.load_state_dict(checkpoint['optimizer'])
     # 学習率を引数の値に変更
     optimizer.param_groups[0]['lr'] = args.lr
+    if args.use_amp and 'scaler' in checkpoint:
+        scaler.load_state_dict(checkpoint['scaler'])
 else:
     epoch = 0
     t = 0  # total steps
@@ -85,6 +89,7 @@ def save_checkpoint():
         't': t,
         'model': model.state_dict(),
         'optimizer': optimizer.state_dict(),
+        'scaler': scaler.state_dict()
     }
     torch.save(checkpoint, path)
 
@@ -99,6 +104,7 @@ for e in range(args.epoch):
     sum_loss_policy_epoch = 0
     sum_loss_value_epoch = 0
     for x, move_label, result in train_dataloader:
+        with torch.cuda.amp.autocast(enabled=args.use_amp):
         model.train()
 
         # 順伝播
@@ -109,8 +115,11 @@ for e in range(args.epoch):
         loss = loss_policy + loss_value
         # 誤差逆伝播
         optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
+            # loss.backward()
+            # optimizer.step()
+            scaler.scale(loss).backward()
+            scaler.step(optimizer)
+            scaler.update()
 
         # トータルステップ数に加算
         t += 1
