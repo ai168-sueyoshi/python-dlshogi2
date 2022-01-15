@@ -1,1 +1,1 @@
-# python-dlshogi2
+# python-dlshogi2 将スタエディション
