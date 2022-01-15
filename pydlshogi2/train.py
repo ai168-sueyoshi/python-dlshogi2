@@ -107,14 +107,14 @@ for e in range(args.epoch):
         with torch.cuda.amp.autocast(enabled=args.use_amp):
         model.train()
 
-        # 順伝播
-        y1, y2 = model(x)
-        # 損失計算
-        loss_policy = cross_entropy_loss(y1, move_label)
-        loss_value = bce_with_logits_loss(y2, result)
-        loss = loss_policy + loss_value
-        # 誤差逆伝播
-        optimizer.zero_grad()
+            # 順伝播
+            y1, y2 = model(x)
+            # 損失計算
+            loss_policy = cross_entropy_loss(y1, move_label)
+            loss_value = bce_with_logits_loss(y2, result)
+            loss = loss_policy + loss_value
+            # 誤差逆伝播
+            optimizer.zero_grad()
             # loss.backward()
             # optimizer.step()
             scaler.scale(loss).backward()
