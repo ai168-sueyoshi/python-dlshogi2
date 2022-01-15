@@ -105,8 +105,8 @@ for e in range(args.epoch):
     sum_loss_value_epoch = 0
     for x, move_label, result in train_dataloader:
         with torch.cuda.amp.autocast(enabled=args.use_amp):
-        model.train()
-
+            model.train()
+            
             # 順伝播
             y1, y2 = model(x)
             # 損失計算
